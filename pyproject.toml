@@ -1,0 +1,62 @@
+[project]
+name = "business-api"
+version = "3.0.0"
+description = "Python FastAPI microservice template for Arify Labs business APIs."
+readme = "README.md"
+requires-python = ">=3.13,<3.14"
+dependencies = [
+    "aiokafka==0.12.0",
+    "bcrypt>=5.0.0",
+    "boto3>=1.35.0,<2.0.0",
+    "confluent-kafka==2.10.0",
+    "cryptocode>=0.1",
+    "fastapi==0.115.11",
+    "httpx==0.28.1",
+    "langgraph>=1.0,<2.0",
+    "langgraph-checkpoint-redis>=0.1,<2.0",
+    "motor==3.7.0",
+    "pydantic==2.10.6",
+    "pydantic-settings==2.13.1",
+    "PyJWT==2.10.1",
+    "pyrefly>=1.0.0",
+    "python-dotenv==1.0.1",
+    "python-jose==3.4.0",
+    "redis==7.3.0",
+    "requests==2.32.3",
+    "uvicorn[standard]==0.34.0",
+]
+
+[dependency-groups]
+dev = [
+    "pyrefly>=1.0.0",
+    "ruff>=0.13.0",
+]
+
+[tool.uv]
+package = false
+
+[tool.ruff]
+target-version = "py313"
+line-length = 180
+src = ["src", "tests"]
+exclude = [
+    ".git",
+    ".venv",
+    "__pycache__",
+    "src/env",
+]
+
+[tool.ruff.lint]
+select = ["E4", "E7", "E9", "F63", "F7", "F82"]
+
+[tool.ruff.lint.per-file-ignores]
+"src/Presentation/app.py" = ["E402"]
+
+[tool.ruff.format]
+line-ending = "lf"
+
+[tool.pyrefly]
+project-includes = [
+    "**/*.py*",
+    "**/*.ipynb",
+]

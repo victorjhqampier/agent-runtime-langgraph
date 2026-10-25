@@ -1,0 +1,38 @@
+{
+  "example_requests": [
+    {
+      "name": "request_1",
+      "example_field": "value_1",
+      "description": "Test request 1 - Basic payload"
+    },
+    {
+      "name": "request_2",
+      "example_field": "value_2",
+      "description": "Test request 2 - Alternative payload"
+    },
+    {
+      "name": "request_3",
+      "example_field": "value_3",
+      "description": "Test request 3 - Edge case payload"
+    }
+  ],
+  "customer_ids": [
+    "12345",
+    "67890",
+    "11111",
+    "22222",
+    "33333"
+  ],
+  "device_identifiers": [
+    "mobile-device-1",
+    "web-device-1",
+    "tablet-device-1",
+    "api-device-1"
+  ],
+  "channel_identifiers": [
+    "WEB",
+    "MOBILE",
+    "API",
+    "INTERNAL"
+  ]
+}

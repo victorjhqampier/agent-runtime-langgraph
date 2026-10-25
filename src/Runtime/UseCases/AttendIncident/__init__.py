@@ -1,0 +1,1 @@
+"""Attend incident use case."""

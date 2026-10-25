@@ -1,0 +1,1 @@
+k6 run tests/performance/k6/stress/no-bian-redis-execute.stress.js --env DURATION=60s

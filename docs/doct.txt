@@ -1,0 +1,13 @@
+field-level encryption o payload/attribute encryption:
+
+* JWE: compact/Json para longitud uniforme
+* Rotación de llaves
+* Firma el mensaje (HMAC o JWS) además del cifrado; messageIdentification
+
+[Se puede usar ]
+
+File-Level-Emcription FLE (solo valores) vs Message-Level-Encripción MLE / Payload Encryption
+
+pip install pyrefly
+pyrefly init
+pyrefly check

@@ -1,0 +1,1 @@
+"""Bedrock Guardrail collections."""

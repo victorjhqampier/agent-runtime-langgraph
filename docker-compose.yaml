@@ -1,0 +1,55 @@
+services:
+  business-api:
+    image: business-api:latest
+    container_name: business-api
+    restart: unless-stopped
+    cpus: "0.5"
+    mem_limit: 700m
+    memswap_limit: 700m
+    environment:
+    # ----- variables del Otel
+      PYTHONUNBUFFERED: "1"
+      OTEL_SERVICE_NAME: business-api
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
+      OTEL_EXPORTER_OTLP_PROTOCOL: http/protobuf
+      OTEL_TRACES_EXPORTER: otlp
+      OTEL_METRICS_EXPORTER: none
+      OTEL_LOGS_EXPORTER: none
+      OTEL_PROPAGATORS: tracecontext,baggage
+      OTEL_RESOURCE_ATTRIBUTES: deployment.environment=lower,service.namespace=local
+      # ---- Variables del proycto
+      COGNITO_HOST_APPCLIENTE_SYSTEM: "https://devops-appcliente-systemlayer-app-domain.auth.us-east-1.amazoncognito.com/oauth2/token"
+      COGNITO_USER_APPCLIENTE_SYSTEM: "59p8838v42vu9bmumsnj2dngk000"
+      COGNITO_PASSWD_APPCLIENTE_SYSTEM: "njnuseik7ul4gpuviql6idq5krtob890a7ca78brnc3dt6cde0o00"
+      COGNITO_SCOPE_APPCLIENTE_SYSTEM: "api/r:partyauth api/u:correspd api/w:history api/w:correspd api/u:history api/w:datadir api/u:catalog api/r:datadir api/r:history api/u:partyauth api/r:correspd api/w:catalog api/w:partyauth api/u:datadir api/r:catalog"
+      COGNITO_JWKS_REGION: "us-east-1"
+      COGNITO_JWKS_POOL_ID: "us-east-1_k2HD1orIX"
+      REDIS_HOST: "host.containers.internal"
+      REDIS_PORT: "6379"
+      REDIS_PASSWORD: "****"
+      REDIS_DB: "0"
+      REDIS_SSL: "false"
+    ports:
+      # Container listens on 80; host exposes 8000.
+      - "8000:80"
+    command:
+      - sh
+      - -c
+      - >
+        uv pip install --python /axapp/.venv/bin/python
+        opentelemetry-distro
+        opentelemetry-exporter-otlp
+        opentelemetry-instrumentation-fastapi
+        opentelemetry-instrumentation-asgi
+        opentelemetry-instrumentation-requests
+        opentelemetry-instrumentation-urllib3 &&
+        /axapp/.venv/bin/opentelemetry-instrument
+        /axapp/.venv/bin/uvicorn Presentation.app:app --app-dir src --host 0.0.0.0 --port 80 --workers 1 --loop uvloop --http httptools
+    # Requires uv, uv-based venv at /axapp/.venv/, internet access, and a FastAPI app at Presentation.app:app.
+    # Adjust the entrypoint if your application uses a different ASGI module path.
+    networks:
+      - observability
+
+networks:
+  observability:
+    external: true
