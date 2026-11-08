@@ -21,7 +21,7 @@ from Runtime.UseCases.AttendIncident.Workflows.AttendIncidentWorkflow import Att
 # *
 # **********************************************************************************************************
 
-class CoreRuntimeSetting:
+class StartingDI:
     @classmethod
     async def add_services(cls) -> None:
         await InfrastructureSetting.add_services()

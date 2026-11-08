@@ -5,6 +5,16 @@ from typing_extensions import TypedDict
 
 
 class IncidentState(TypedDict, total=False):
+    """Estado mutable del grafo LangGraph del caso de uso `attend_incident`.
+
+    Representa los datos que fluyen entre nodos a lo largo del workflow. Cada nodo
+    devuelve parciales que LangGraph fusiona en este estado. El checkpointer duradero
+    guarda el estado asociado al `thread_id` para permitir reanudar ejecuciones
+    interrumpidas.
+
+    No guardar secretos, credenciales ni prompts renderizados en ningún campo.
+    """
+
     session_id: str
     conversation_id: str
     thread_id: str

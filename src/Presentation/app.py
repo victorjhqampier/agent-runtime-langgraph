@@ -5,7 +5,7 @@ load_dotenv(Path(__file__).resolve().parents[1] / ".env")
 
 from Presentation.FastApi.Controllers.ExampleAgentRuntime.ExampleAgentRuntimeController import ExampleAgentRuntimeController
 from Presentation.FastApi.Middlewares.SecurityHeadersMiddleware import SecurityHeadersMiddleware
-from Runtime.CoreRuntimeSetting import CoreRuntimeSetting
+from Presentation.StartingDI import StartingDI
 from Infrastructure.Tools.HttpClientHelper.HttpClientConnector import HttpClientConnector
 from Domain.Containers.DependencyInjection.CoreServices import CoreServices as Services
 from fastapi import FastAPI
@@ -28,7 +28,7 @@ from contextlib import asynccontextmanager
 # ----- Start Coroutine -----
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    await CoreRuntimeSetting.add_services()
+    await StartingDI.add_services()
     try:
         yield
     finally:

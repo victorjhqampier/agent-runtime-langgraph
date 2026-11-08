@@ -19,24 +19,30 @@ Plantilla Python 3.13 de Arify Labs. Si editas bajo `src/Runtime`, `src/Domain`,
 - ASGI app FastAPI: `src/Presentation/app.py`, import path `Presentation.app:app`, docs en `/docs/openapi`.
 - ASGI app AgentCore: `src/Presentation/AmazonAgentcore.AmazonAgentcoreRuntime:application`, import path `Presentation.AmazonAgentcore.AmazonAgentcoreRuntime:application`, salud en `/ping` e invocaciones en `/invocations`.
 - Config env: la app carga `src/.env`; no versionar secretos ni connection strings reales.
-- Startup registra `CoreRuntimeSetting` y los proveedores de `Infrastructure`; shutdown cierra `HttpClientConnector`.
-- DI usa `Domain.Containers.DependencyInjection.CoreServices`; los `*Setting.py` son solo registro/configuracion DI, no helpers ni logica adicional.
-- Health checks que deben preservarse: `/health`, `/health/detailed`, `/health/ready`, `/health/live`, `/healthcheck`, `/ping`.
+- Startup registra proveedores de `Infrastructure` desde `Presentation.StartingDI.StartingDI.add_services()`; shutdown cierra `HttpClientConnector`.
+- DI usa `Domain.Containers.DependencyInjection.CoreServices.CoreServices`; los `*Setting.py` son solo registro/configuracion DI, no helpers ni logica adicional.
+- `Presentation.StartingDI.StartingDI` es el composition root autorizado: registra `InfrastructureSetting` y compone `AttendIncidentWorkflow` sobre puertos de Domain. No contiene logica de negocio.
+- `src/Runtime/CoreRuntimeSetting.py` fue eliminado; `Runtime` no importa ni registra `Infrastructure`.
+- Health checks que deben preservarse: `/health` (FastAPI) y `/ping` (AgentCore). Los endpoints `/health/detailed`, `/health/ready`, `/health/live`, `/healthcheck` no existen; no agregarlos sin instruccion.
 - Docker usa `uv sync --frozen --no-dev --no-install-project` y arranca un worker en puerto 80 con `--app-dir src`.
 
 ## Arquitectura
 
-### Dirección de dependencias
+### Direccion de dependencias
 
 ```text
-Presentation -> Runtime -> Domain
-                     |
-                     v
-                Infrastructure -> Domain
+Presentation
+   |\
+   | \
+   v  v
+Runtime  Infrastructure
+   \    /
+    v  v
+     Domain
 ```
 
-- `Presentation` traduce transporte/autorizacion, aplica timeout HTTP de 9s y mapea timeout a 408; debe invocar casos de uso, no infraestructura directa.
-- `Runtime` orquesta casos de uso, workflows LangGraph, validaciones de aplicación y contratos de `Domain`; no construye respuestas HTTP ni llama proveedores concretos. `CoreRuntimeSetting` es la única excepción para composición DI y puede registrar `InfrastructureSetting`.
+- `Presentation` traduce transporte/autorizacion, aplica timeout HTTP de 9s y mapea timeout a 408; debe invocar casos de uso, no infraestructura directa. `StartingDI` es el unico punto de registro de proveedores concretos.
+- `Runtime` orquesta casos de uso, workflows LangGraph, validaciones de aplicacion y contratos de `Domain`; no construye respuestas HTTP ni llama proveedores concretos. No importa ni registra `Infrastructure`.
 - `Infrastructure` implementa interfaces de `Domain` y encapsula proveedores concretos sin filtrarlos a capas internas.
 - `Domain` no debe depender de otras capas ni de HTTP/storage/drivers/SDKs; contratos de infraestructura viven como interfaces de dominio.
 
@@ -62,4 +68,4 @@ Presentation -> Runtime -> Domain
 
 ## No Tocar Sin Instruccion Explicita
 
-- `ConfigForIATools/**`, `docs/**`, `env/**`, `.venv/**`, `__pycache__/**`.
+- `docs/**`, `.venv/**`, `__pycache__/**`.

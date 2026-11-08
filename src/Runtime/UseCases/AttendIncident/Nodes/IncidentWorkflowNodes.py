@@ -16,6 +16,16 @@ from Runtime.UseCases.AttendIncident.States.IncidentState import IncidentState
 
 
 class IncidentWorkflowNodes:
+    """Nodos de operación del workflow AttendIncident.
+
+    Cada método es un nodo LangGraph de una sola responsabilidad: clasificar, aclarar,
+    recuperar evidencia, responder, confirmar ticket, crear ticket o cerrar sin ticket.
+    Transforman IncidentState y devuelven parciales que LangGraph fusiona en el estado.
+
+    Depende solo de puertos de Domain (nunca de Infrastructure directamente).
+    Las acciones externas requieren confirmación real antes de exponerse como exitosas.
+    """
+
     def __init__(
         self,
         incident_reasoning: IIncidentReasoningCommand,
@@ -68,6 +78,12 @@ class IncidentWorkflowNodes:
         ]
 
     def get_confirmation(self, resume_value: Any) -> bool | None:
+        """Interpreta la respuesta del usuario a una interrupción de confirmación de ticket.
+
+        Acepta valores en español e inglés (si/sí/yes/confirmo/confirmar/créalo/crealo ->
+        True; no/cancelar/cancelo/rechazo -> False). Devuelve None si no se pudo interpretar
+        y el workflow debe volver a preguntar.
+        """
         if isinstance(resume_value, dict):
             if isinstance(resume_value.get("confirmed"), bool):
                 return resume_value["confirmed"]
@@ -119,6 +135,12 @@ class IncidentWorkflowNodes:
         }
 
     def pause_for_clarification(self, state: IncidentState) -> dict[str, Any]:
+        """Nodo de pausa: espera la respuesta del usuario a una pregunta de aclaración.
+
+        Llama a `interrupt()` y bloquea hasta que el usuario responte. El mensaje recibido
+        se almacena como `user_message` para que el siguiente ciclo de `analyze_async` lo
+        procese. Requiere checkpointer duradero y `thread_id` estable.
+        """
         resume_value = interrupt(state["interrupt"])
         if isinstance(resume_value, dict):
             message = str(resume_value.get("message", "")).strip()
@@ -182,12 +204,25 @@ class IncidentWorkflowNodes:
         }
 
     def pause_for_ticket_confirmation(self, state: IncidentState) -> dict[str, Any]:
+        """Nodo de pausa: espera la confirmación del usuario para crear un ticket.
+
+        Llama a `interrupt()` y espera una respuesta válida (sí/no). El resultado se almacena
+        como `ticket_confirmation` ("confirmed" o "declined"). El ticket solo se crea tras
+        confirmación explícita del usuario y del sistema externo.
+        """
         confirmation = self.get_confirmation(interrupt(state["interrupt"]))
         while confirmation is None:
             confirmation = self.get_confirmation(interrupt(state["interrupt"]))
         return {"ticket_confirmation": "confirmed" if confirmation else "declined", "interrupt": None}
 
     async def create_ticket_async(self, state: IncidentState) -> dict[str, Any]:
+        """Nodo de creación de ticket externo.
+
+        Crea un ticket solo si el usuario confirmó. Usa `idempotency_key` para evitar
+        duplicados: consulta primero si ya existe un ticket con esa clave antes de crear
+        uno nuevo. Establece `resolution_status` en "escalated" solo tras confirmación real
+        del sistema externo.
+        """
         incident = self.build_incident(state)
         incident.escalate()
         idempotency_key = str(state.get("idempotency_key") or state["turn_id"])
