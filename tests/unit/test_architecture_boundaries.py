@@ -53,12 +53,13 @@ class ArchitectureBoundaryTests(unittest.TestCase):
         violations = {
             str(source_file.relative_to(self.source_root)): self.get_forbidden_imports(imports, {"Infrastructure"})
             for source_file, imports in runtime_imports.items()
-            if source_file.name != "CoreRuntimeSetting.py" and self.get_forbidden_imports(imports, {"Infrastructure"})
+            if self.get_forbidden_imports(imports, {"Infrastructure"})
         }
 
         self.assertEqual({}, violations)
-        composition_imports = runtime_imports[self.source_root / "Runtime" / "CoreRuntimeSetting.py"]
-        self.assertIn("Infrastructure.InfrastructureSetting", composition_imports)
+        presentation_imports = self.get_imports(self.source_root / "Presentation")
+        composition_imports = presentation_imports[self.source_root / "Presentation" / "StartingDI.py"]
+        self.assertIn("Infrastructure.Llms.AwsBedrockLlm.AwsBedrockLlmSetting", composition_imports)
         self.assertNotIn("langgraph.checkpoint.redis", composition_imports)
 
     def test_workflow_logic_does_not_import_infrastructure_providers(self) -> None:

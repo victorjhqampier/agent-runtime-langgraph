@@ -4,8 +4,10 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "src"))
 
+from langgraph.checkpoint.base import BaseCheckpointSaver
 from langgraph.checkpoint.memory import InMemorySaver
 
+from Domain.Containers.DependencyInjection.CoreServices import CoreServices
 from Domain.Entities.Evidence import Evidence
 from Domain.Entities.Incident import Incident
 from Domain.Entities.IncidentAssessment import IncidentAssessment
@@ -78,10 +80,17 @@ class AttendIncidentWorkflowTests(unittest.IsolatedAsyncioTestCase):
     def build_workflow(
         self, assessments: list[IncidentAssessment], evidence: list[Evidence], existing_ticket: Ticket | None = None
     ) -> tuple[AttendIncidentWorkflow, StubTicketCommand]:
+        reasoning = StubIncidentReasoningCommand(assessments)
         ticket_command = StubTicketCommand()
-        return AttendIncidentWorkflow(
-            StubIncidentReasoningCommand(assessments), StubEvidenceQuery(evidence), ticket_command, StubTicketQuery(existing_ticket), InMemorySaver()
-        ), ticket_command
+        evidence_query = StubEvidenceQuery(evidence)
+        ticket_query = StubTicketQuery(existing_ticket)
+        checkpointer = InMemorySaver()
+        CoreServices.add_singleton_factory(IIncidentReasoningCommand, lambda: reasoning)
+        CoreServices.add_singleton_factory(IEvidenceQuery, lambda: evidence_query)
+        CoreServices.add_singleton_factory(ITicketCommand, lambda: ticket_command)
+        CoreServices.add_singleton_factory(ITicketQuery, lambda: ticket_query)
+        CoreServices.add_singleton_factory(BaseCheckpointSaver, lambda: checkpointer)
+        return AttendIncidentWorkflow(), ticket_command
 
     def get_config(self) -> dict:
         return {"configurable": {"thread_id": "thread-123"}}

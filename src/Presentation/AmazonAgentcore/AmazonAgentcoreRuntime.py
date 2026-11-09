@@ -15,7 +15,7 @@ from Runtime.Ports.IRuntimeGraphPort import IRuntimeGraphPort
 from Runtime.UseCases.AttendIncident.AttendIncidentUsecase import AttendIncidentUsecase
 from Runtime.UseCases.AttendIncident.Schemas.ResumeInput import ResumeInput
 from Runtime.UseCases.AttendIncident.Schemas.UserContext import UserContext
-from Runtime.CoreRuntimeSetting import CoreRuntimeSetting
+from Presentation.StartingDI import StartingDI
 
 # ********************************************************************************************************
 # * Copyright © 2026 Arify Labs - All rights reserved.
@@ -42,7 +42,7 @@ class AmazonAgentcoreRuntime:
         if self.started:
             return
         if self.usecase_factory is None:
-            await CoreRuntimeSetting.add_services()
+            await StartingDI.add_services()
             self.usecase = AttendIncidentUsecase(Services.get_dependency(IRuntimeGraphPort))
         else:
             self.usecase = self.usecase_factory()

@@ -1,13 +1,13 @@
-from langgraph.checkpoint.base import BaseCheckpointSaver
-
 from Domain.Containers.DependencyInjection.CoreServices import CoreServices as Services
-from Domain.Interfaces.Commands.IIncidentReasoningCommand import IIncidentReasoningCommand
-from Domain.Interfaces.Commands.ITicketCommand import ITicketCommand
-from Domain.Interfaces.Queries.IEvidenceQuery import IEvidenceQuery
-from Domain.Interfaces.Queries.ITicketQuery import ITicketQuery
-from Infrastructure.InfrastructureSetting import InfrastructureSetting
 from Runtime.Ports.IRuntimeGraphPort import IRuntimeGraphPort
 from Runtime.UseCases.AttendIncident.Workflows.AttendIncidentWorkflow import AttendIncidentWorkflow
+from Infrastructure.Guardrails.AwsBedrockGuardrail.AwsBedrockGuardrailSetting import BedrockGuardrailSetting
+from Infrastructure.Llms.AwsBedrockLlm.AwsBedrockLlmSetting import BedrockLlmSetting
+from Infrastructure.Memories.AwsRedisMemory.AwsRedisMemorySetting import RedisMemorySetting
+from Infrastructure.Rags.AwsBedrockRag.AwsBedrockRagSetting import BedrockRagSetting
+from Infrastructure.Securities.RuntimeSecurity.RuntimeSecuritySetting import SecuritySetting
+from Infrastructure.Tools.ApiItopTool.ApiItopToolSetting import ApiItopToolSetting
+from Infrastructure.Tools.HttpClientHelper.HttpClientSetting import HttpClientSetting
 
 # ********************************************************************************************************
 # * Copyright © 2026 Arify Labs - All rights reserved.
@@ -24,14 +24,14 @@ from Runtime.UseCases.AttendIncident.Workflows.AttendIncidentWorkflow import Att
 class StartingDI:
     @classmethod
     async def add_services(cls) -> None:
-        await InfrastructureSetting.add_services()
-        Services.add_singleton_factory(
-            IRuntimeGraphPort,
-            lambda: AttendIncidentWorkflow(
-                Services.get_dependency(IIncidentReasoningCommand),
-                Services.get_dependency(IEvidenceQuery),
-                Services.get_dependency(ITicketCommand),
-                Services.get_dependency(ITicketQuery),
-                Services.get_dependency(BaseCheckpointSaver),
-            ),
-        )
+        # -- Infrastructure services
+        BedrockLlmSetting.add_services()
+        BedrockRagSetting.add_services()
+        await RedisMemorySetting.add_services()
+        HttpClientSetting.add_services()
+        ApiItopToolSetting.add_services()
+        BedrockGuardrailSetting.add_services()
+        SecuritySetting.add_services()
+
+        # -- Application services
+        Services.add_singleton_factory(IRuntimeGraphPort, AttendIncidentWorkflow)

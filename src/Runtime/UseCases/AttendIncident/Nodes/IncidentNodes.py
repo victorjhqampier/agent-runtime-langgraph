@@ -1,10 +1,8 @@
 from typing import Any
-
+from Domain.Containers.DependencyInjection.CoreServices import CoreServices as Services
 from langgraph.types import interrupt
-
 from Domain.Entities.Evidence import Evidence
 from Domain.Entities.Incident import Incident
-from Domain.Enums.IncidentStatus import IncidentStatus
 from Domain.Interfaces.Commands.IIncidentReasoningCommand import IIncidentReasoningCommand
 from Domain.Interfaces.Commands.ITicketCommand import ITicketCommand
 from Domain.Interfaces.Queries.IEvidenceQuery import IEvidenceQuery
@@ -14,8 +12,19 @@ from Domain.ValueObjects.TenantId import TenantId
 from Runtime.UseCases.AttendIncident.Prompts.IncidentReasoningPrompts import IncidentReasoningPrompts
 from Runtime.UseCases.AttendIncident.States.IncidentState import IncidentState
 
+# ********************************************************************************************************
+# * Copyright © 2026 Arify Labs - All rights reserved.
+# *
+# * Info                  : Nodes for the `attend_incident` use case workflow.
+# *
+# * By                    : Victor Jhampier Caxi Maquera
+# * Email/Mobile/Phone    : victorjhampier@gmail.com | 968991714
+# *
+# * Creation date         : 08/11/2026
+# *
+# **********************************************************************************************************
 
-class IncidentWorkflowNodes:
+class IncidentNodes:
     """Nodos de operación del workflow AttendIncident.
 
     Cada método es un nodo LangGraph de una sola responsabilidad: clasificar, aclarar,
@@ -26,20 +35,12 @@ class IncidentWorkflowNodes:
     Las acciones externas requieren confirmación real antes de exponerse como exitosas.
     """
 
-    def __init__(
-        self,
-        incident_reasoning: IIncidentReasoningCommand,
-        evidence_query: IEvidenceQuery,
-        ticket_command: ITicketCommand,
-        ticket_query: ITicketQuery,
-        prompts: IncidentReasoningPrompts,
-        maximum_clarification_attempts: int,
-    ) -> None:
-        self.incident_reasoning = incident_reasoning
-        self.evidence_query = evidence_query
-        self.ticket_command = ticket_command
-        self.ticket_query = ticket_query
-        self.prompts = prompts
+    def __init__(self, maximum_clarification_attempts:int = 2) -> None:
+        self.incident_reasoning = Services.get_dependency(IIncidentReasoningCommand)
+        self.evidence_query = Services.get_dependency(IEvidenceQuery)
+        self.ticket_command = Services.get_dependency(ITicketCommand)
+        self.ticket_query = Services.get_dependency(ITicketQuery)
+        self.prompts: IncidentReasoningPrompts = IncidentReasoningPrompts()
         self.maximum_clarification_attempts = maximum_clarification_attempts
 
     def build_incident(self, state: IncidentState) -> Incident:

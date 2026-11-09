@@ -1,19 +1,25 @@
 from typing import Any, Literal, cast
-
+from Domain.Containers.DependencyInjection.CoreServices import CoreServices as Services
 from langchain_core.runnables import RunnableConfig
 from langgraph.checkpoint.base import BaseCheckpointSaver
 from langgraph.graph import END, START, StateGraph
 from langgraph.types import Command
-
-from Domain.Interfaces.Commands.IIncidentReasoningCommand import IIncidentReasoningCommand
-from Domain.Interfaces.Commands.ITicketCommand import ITicketCommand
-from Domain.Interfaces.Queries.IEvidenceQuery import IEvidenceQuery
-from Domain.Interfaces.Queries.ITicketQuery import ITicketQuery
 from Runtime.Ports.IRuntimeGraphPort import IRuntimeGraphPort
-from Runtime.UseCases.AttendIncident.Nodes.IncidentWorkflowNodes import IncidentWorkflowNodes
-from Runtime.UseCases.AttendIncident.Prompts.IncidentReasoningPrompts import IncidentReasoningPrompts
+from Runtime.UseCases.AttendIncident.Config.ContextConfig import ContextConfig
+from Runtime.UseCases.AttendIncident.Nodes.IncidentNodes import IncidentNodes
 from Runtime.UseCases.AttendIncident.States.IncidentState import IncidentState
 
+# ********************************************************************************************************
+# * Copyright © 2026 Arify Labs - All rights reserved.
+# *
+# * Info                  : Main Workflow for the `attend_incident` use case.
+# *
+# * By                    : Victor Jhampier Caxi Maquera
+# * Email/Mobile/Phone    : victorjhampier@gmail.com | 968991714
+# *
+# * Creation date         : 08/11/2026
+# *
+# **********************************************************************************************************
 
 class AttendIncidentWorkflow(IRuntimeGraphPort):
     """Workflow LangGraph del caso de uso `attend_incident`.
@@ -26,20 +32,14 @@ class AttendIncidentWorkflow(IRuntimeGraphPort):
     Flujo: START -> analyze -> [reject | clarify | retrieve | confirm_ticket] -> ... -> END.
     """
 
-    def __init__(
-        self,
-        incident_reasoning: IIncidentReasoningCommand,
-        evidence_query: IEvidenceQuery,
-        ticket_command: ITicketCommand,
-        ticket_query: ITicketQuery,
-        checkpointer: BaseCheckpointSaver,
-        maximum_clarification_attempts: int = 2,
-    ) -> None:
-        self.nodes = IncidentWorkflowNodes(incident_reasoning, evidence_query, ticket_command, ticket_query, IncidentReasoningPrompts(), maximum_clarification_attempts)
+    def __init__(self) -> None:
+        maximum_clarification_attempts = ContextConfig().maximum_clarification_attempts
         self.maximum_clarification_attempts = maximum_clarification_attempts
-        self.graph = self.build_graph(checkpointer)
+        self.nodes = IncidentNodes(maximum_clarification_attempts)        
+        checkpointer: BaseCheckpointSaver = Services.get_dependency(BaseCheckpointSaver)
+        self.graph = self._build_graph(checkpointer)
 
-    def build_graph(self, checkpointer: BaseCheckpointSaver):
+    def _build_graph(self, checkpointer: BaseCheckpointSaver):
         workflow = StateGraph(IncidentState)  # type: ignore[bad-specialization]
         workflow.add_node("analyze", self.nodes.analyze_async)
         workflow.add_node("reject", self.nodes.prepare_rejection)
@@ -52,22 +52,31 @@ class AttendIncidentWorkflow(IRuntimeGraphPort):
         workflow.add_node("create_ticket", self.nodes.create_ticket_async)
         workflow.add_node("close_without_ticket", self.nodes.close_without_ticket)
         workflow.add_edge(START, "analyze")
-        workflow.add_conditional_edges(
-            "analyze",
-            self.route_after_analysis,
-            {"reject": "reject", "clarify": "prepare_clarification", "retrieve": "retrieve_evidence", "confirm_ticket": "prepare_ticket_confirmation"},
-        )
+        workflow.add_conditional_edges("analyze", self.route_after_analysis, 
+        {
+            "reject": "reject", 
+            "clarify": "prepare_clarification", 
+            "retrieve": "retrieve_evidence", 
+            "confirm_ticket": "prepare_ticket_confirmation"
+        })
         workflow.add_edge("reject", END)
         workflow.add_edge("prepare_clarification", "pause_clarification")
         workflow.add_edge("pause_clarification", "analyze")
-        workflow.add_conditional_edges("retrieve_evidence", self.route_after_evidence, {"respond": "build_response", "confirm_ticket": "prepare_ticket_confirmation"})
+        workflow.add_conditional_edges("retrieve_evidence", self.route_after_evidence,
+        {
+            "respond": "build_response",
+            "confirm_ticket": "prepare_ticket_confirmation"
+        })
         workflow.add_edge("build_response", END)
         workflow.add_edge("prepare_ticket_confirmation", "pause_ticket_confirmation")
-        workflow.add_conditional_edges(
-            "pause_ticket_confirmation", self.route_after_ticket_confirmation, {"create_ticket": "create_ticket", "close_without_ticket": "close_without_ticket"}
-        )
+        workflow.add_conditional_edges("pause_ticket_confirmation", self.route_after_ticket_confirmation,
+        {
+            "create_ticket": "create_ticket", 
+            "close_without_ticket": "close_without_ticket"
+        })
         workflow.add_edge("create_ticket", END)
         workflow.add_edge("close_without_ticket", END)
+
         return workflow.compile(checkpointer=checkpointer)
 
     def route_after_analysis(self, state: IncidentState) -> Literal["reject", "clarify", "retrieve", "confirm_ticket"]:
@@ -79,6 +88,7 @@ class AttendIncidentWorkflow(IRuntimeGraphPort):
         - Requiere aclaración y aún hay intentos -> clarify.
         - No requiere aclaración -> retrieve (buscar evidencia).
         """
+
         classification = state.get("classification", {})
         if not classification.get("in_scope", False):
             return "reject"
@@ -93,8 +103,10 @@ class AttendIncidentWorkflow(IRuntimeGraphPort):
 
         - Evidencia suficiente -> respond (generar respuesta final).
         - Evidencia insuficiente -> confirm_ticket (pedir autorización para escalar).
+        
         Nunca se inventa una solución cuando la evidencia es insuficiente.
         """
+
         if state.get("evidence_status") == "sufficient":
             return "respond"
         return "confirm_ticket"
@@ -105,6 +117,7 @@ class AttendIncidentWorkflow(IRuntimeGraphPort):
         - Confirmado -> create_ticket (solo tras confirmación explícita y del sistema externo).
         - Declinado -> close_without_ticket.
         """
+
         if state.get("ticket_confirmation") == "confirmed":
             return "create_ticket"
         return "close_without_ticket"
@@ -115,6 +128,7 @@ class AttendIncidentWorkflow(IRuntimeGraphPort):
         Soporta dos modos: invocación nueva (desde START) o reanudación de interrupción
         (Command resume con el mismo `thread_id` para continuar tras un `interrupt()`).
         """
+
         resume_input = graph_input.get("resume_input")
         if resume_input is not None:
             resume_value = dict(resume_input)
